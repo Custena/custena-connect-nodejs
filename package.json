@@ -1,0 +1,59 @@
+{
+  "name": "custena-connect",
+  "version": "0.1.0",
+  "description": "Connect your AI coding agent to Custena — pay HTTP 402 responses from your Custena buyer account.",
+  "keywords": [
+    "custena",
+    "x402",
+    "http-402",
+    "mcp",
+    "ai-agent",
+    "payments",
+    "claude-code"
+  ],
+  "homepage": "https://github.com/Custena/custena-connect-nodejs#readme",
+  "bugs": {
+    "url": "https://github.com/Custena/custena-connect-nodejs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Custena/custena-connect-nodejs.git"
+  },
+  "license": "MIT",
+  "author": "Custena",
+  "type": "module",
+  "bin": {
+    "custena-connect": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "open": "^10.0.0",
+    "ora": "^8.0.0",
+    "chalk": "^5.3.0",
+    "node-fetch": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "tsx": "^4.15.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
