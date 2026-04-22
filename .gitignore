@@ -149,3 +149,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Private maintainer notes (not for public repo)
+private-readme.md
+

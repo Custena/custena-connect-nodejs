@@ -23,7 +23,7 @@
   "author": "Custena",
   "type": "module",
   "bin": {
-    "custena-connect": "./dist/cli.js"
+    "custena-connect": "dist/cli.js"
   },
   "files": [
     "dist",
