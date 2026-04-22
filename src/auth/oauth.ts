@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 // The OAuth endpoints — in prod these come from the resource metadata
-const KEYCLOAK_BASE = process.env.CUSTENA_KEYCLOAK_URL ?? 'https://auth.custena.com/realms/custena';
+const KEYCLOAK_BASE = process.env.CUSTENA_KEYCLOAK_URL ?? 'https://api.custena.com/auth/realms/custena';
 const CLIENT_ID = 'custena-connect-cli';
 
 function generateCodeVerifier(): string {

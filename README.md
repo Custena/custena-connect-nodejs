@@ -54,7 +54,7 @@ Want another host? [Open an issue](https://github.com/Custena/custena-connect-no
 
 ## How it works
 
-- **OAuth** — `custena-connect install` runs an OAuth 2.0 Authorization Code + PKCE flow against `auth.custena.com`, with a local callback on `http://localhost:9874/callback`. The resulting token is written to `~/.custena/token.json` (mode `0600`).
+- **OAuth** — `custena-connect install` runs an OAuth 2.0 Authorization Code + PKCE flow against `https://api.custena.com/auth` (Keycloak), with a local callback on `http://localhost:9874/callback`. The resulting token is written to `~/.custena/token.json` (mode `0600`).
 - **MCP** — Custena's MCP server lives at `https://api.custena.com/mcp`. The adapter registers it with your host via the host's native MCP config (for Claude Code: `claude mcp add --transport http --scope user`).
 - **Hooks** — On hosts that support them, `custena-connect` installs `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, and `Stop` hooks that forward summaries to Custena for audit and governance. Events are queued locally if the network is unavailable and drained on the next successful call.
 
@@ -65,7 +65,7 @@ All configuration has sensible defaults. Override via environment variables if y
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CUSTENA_API_URL` | `https://api.custena.com` | Custena API base URL |
-| `CUSTENA_KEYCLOAK_URL` | `https://auth.custena.com/realms/custena` | Keycloak realm URL |
+| `CUSTENA_KEYCLOAK_URL` | `https://api.custena.com/auth/realms/custena` | Keycloak realm URL |
 | `CUSTENA_OAUTH_CLIENT_ID` | `custena-connect-cli` | OAuth client ID |
 
 ## Development
