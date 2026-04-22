@@ -1,6 +1,6 @@
 {
   "name": "custena-connect",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Connect your AI coding agent to Custena — pay HTTP 402 responses from your Custena buyer account.",
   "keywords": [
     "custena",
