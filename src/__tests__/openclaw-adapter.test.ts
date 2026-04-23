@@ -111,3 +111,66 @@ describe('OpenClawAdapter.writeMcpConfig()', () => {
     );
   });
 });
+
+describe('OpenClawAdapter.writeSkill()', () => {
+  let adapter: OpenClawAdapter;
+  beforeEach(() => { adapter = new OpenClawAdapter(); vi.clearAllMocks(); });
+
+  it('writes skill file to ~/.openclaw/skills/custena-pay.md with frontmatter', async () => {
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+    await adapter.writeSkill();
+
+    expect(fs.mkdir).toHaveBeenCalledWith(
+      path.join(OPENCLAW_DIR, 'skills'),
+      { recursive: true },
+    );
+    const [writePath, content] = vi.mocked(fs.writeFile).mock.calls[0] as [string, string];
+    expect(writePath).toBe(SKILL_PATH);
+    expect(content).toContain('name: custena-pay');
+    expect(content).toContain('description: Pay HTTP 402');
+    expect(content).toContain('custena.pay_challenge');
+  });
+});
+
+describe('OpenClawAdapter.removeAll()', () => {
+  let adapter: OpenClawAdapter;
+  beforeEach(() => { adapter = new OpenClawAdapter(); vi.clearAllMocks(); });
+
+  it('calls `openclaw mcp unset custena` and deletes skill file', async () => {
+    vi.mocked(execSync).mockReturnValueOnce(Buffer.from(''));
+    vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    vi.mocked(fs.unlink).mockResolvedValue(undefined);
+
+    await adapter.removeAll();
+
+    expect(execSync).toHaveBeenCalledWith('openclaw mcp unset custena', { stdio: 'ignore' });
+    expect(fs.unlink).toHaveBeenCalledWith(SKILL_PATH);
+  });
+
+  it('removes custena from config JSON when present (even if CLI fails)', async () => {
+    vi.mocked(execSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    const existing = JSON.stringify({
+      mcp: { servers: { custena: { url: 'x' }, other: { url: 'y' } } },
+    });
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+    vi.mocked(fs.unlink).mockResolvedValue(undefined);
+
+    await adapter.removeAll();
+
+    const [, content] = vi.mocked(fs.writeFile).mock.calls[0] as [string, string];
+    const written = JSON.parse(content);
+    expect(written.mcp.servers.custena).toBeUndefined();
+    expect(written.mcp.servers.other).toBeDefined();
+  });
+
+  it('does not throw if skill file does not exist', async () => {
+    vi.mocked(execSync).mockReturnValueOnce(Buffer.from(''));
+    vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    vi.mocked(fs.unlink).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+
+    await expect(adapter.removeAll()).resolves.not.toThrow();
+  });
+});

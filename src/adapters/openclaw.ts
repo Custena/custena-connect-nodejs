@@ -79,7 +79,26 @@ export class OpenClawAdapter implements HostAdapter {
     await fs.writeFile(this.configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
   }
 
-  async writeSkill(): Promise<void> {}
+  async writeSkill(): Promise<void> {
+    await fs.mkdir(path.dirname(this.skillPath), { recursive: true });
+    await fs.writeFile(this.skillPath, SKILL_FRONTMATTER + SKILL_TEXT, 'utf-8');
+  }
+
   async writeHooks(): Promise<void> {} // OpenClaw has no hook system.
-  async removeAll(): Promise<void> {}
+
+  async removeAll(): Promise<void> {
+    try { execSync('openclaw mcp unset custena', { stdio: 'ignore' }); } catch {}
+
+    // Also clean up JSON directly in case CLI wasn't available during install.
+    try {
+      const raw = await fs.readFile(this.configPath, 'utf-8');
+      const config = JSON.parse(raw);
+      if (config.mcp?.servers?.custena) {
+        delete config.mcp.servers.custena;
+        await fs.writeFile(this.configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+      }
+    } catch {}
+
+    try { await fs.unlink(this.skillPath); } catch {}
+  }
 }
