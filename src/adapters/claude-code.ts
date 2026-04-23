@@ -3,7 +3,7 @@ import { MCP_URL, OAUTH_CLIENT_ID, SKILL_TEXT } from '../config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { execFileSync } from 'child_process';
+import { runSync } from '../shared/exec.js';
 
 // Only the slice of ~/.claude/settings.json this adapter actually reads or
 // writes. The index signature preserves unknown keys on round-trip so we
@@ -51,7 +51,7 @@ export class ClaudeCodeAdapter implements HostAdapter {
     } catch {}
     // Check claude binary on PATH
     try {
-      execFileSync('which', ['claude'], { stdio: 'ignore' });
+      runSync('which', ['claude'], { stdio: 'ignore' });
       return { installed: true, configPath: this.settingsPath };
     } catch {}
     // Check VS Code extension
@@ -71,7 +71,7 @@ export class ClaudeCodeAdapter implements HostAdapter {
     // this CLI maintains in ~/.claude.json, NOT ~/.claude/settings.json).
     // Remove first for idempotency; ignore failure when no entry exists.
     try {
-      execFileSync('claude', ['mcp', 'remove', 'custena', '--scope', 'user'], { stdio: 'ignore' });
+      runSync('claude', ['mcp', 'remove', 'custena', '--scope', 'user'], { stdio: 'ignore' });
     } catch {}
     // `claude mcp add` takes URL as a positional arg (not --url):
     //   claude mcp add --transport http --scope user --client-id <id> <name> <url>
@@ -83,7 +83,8 @@ export class ClaudeCodeAdapter implements HostAdapter {
     // argv form (not a shell string) so OAUTH_CLIENT_ID and MCP_URL — both
     // env-overridable — can't inject shell metacharacters. See review:
     // strings passed to execSync are parsed by /bin/sh; argv arrays aren't.
-    execFileSync(
+    // runSync goes through cross-spawn so PATHEXT resolution works on Windows.
+    runSync(
       'claude',
       [
         'mcp', 'add',
@@ -150,7 +151,7 @@ export class ClaudeCodeAdapter implements HostAdapter {
     // case an older local-scope entry is lying around. Ignore failures.
     for (const scope of ['user', 'local'] as const) {
       try {
-        execFileSync('claude', ['mcp', 'remove', 'custena', '--scope', scope], { stdio: 'ignore' });
+        runSync('claude', ['mcp', 'remove', 'custena', '--scope', scope], { stdio: 'ignore' });
       } catch {}
     }
 

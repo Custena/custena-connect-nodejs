@@ -3,7 +3,7 @@ import { MCP_URL, SKILL_TEXT } from '../config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { execFileSync } from 'child_process';
+import { runSync } from '../shared/exec.js';
 
 // Only the slice of ~/.openclaw/openclaw.json this adapter touches. Unknown
 // keys flow through the index signature so round-tripping the file doesn't
@@ -41,7 +41,7 @@ export class OpenClawAdapter implements HostAdapter {
       return { installed: true, configPath: this.configPath };
     } catch {}
     try {
-      execFileSync('which', ['openclaw'], { stdio: 'ignore' });
+      runSync('which', ['openclaw'], { stdio: 'ignore' });
       return { installed: true, configPath: this.configPath };
     } catch {}
     return { installed: false };
@@ -54,7 +54,7 @@ export class OpenClawAdapter implements HostAdapter {
     });
 
     try {
-      execFileSync('openclaw', ['mcp', 'set', 'custena', serverJson], { stdio: 'inherit' });
+      runSync('openclaw', ['mcp', 'set', 'custena', serverJson], { stdio: 'inherit' });
     } catch {
       await this.writeConfigFallback(oauth.accessToken);
     }
@@ -101,7 +101,7 @@ export class OpenClawAdapter implements HostAdapter {
   async writeHooks(): Promise<void> {} // OpenClaw has no hook system.
 
   async removeAll(): Promise<void> {
-    try { execFileSync('openclaw', ['mcp', 'unset', 'custena'], { stdio: 'ignore' }); } catch {}
+    try { runSync('openclaw', ['mcp', 'unset', 'custena'], { stdio: 'ignore' }); } catch {}
 
     // Also clean up JSON directly in case CLI wasn't available during install.
     try {

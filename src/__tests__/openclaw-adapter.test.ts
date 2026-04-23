@@ -3,10 +3,10 @@ import os from 'os';
 import path from 'path';
 
 vi.mock('fs/promises');
-vi.mock('child_process');
+vi.mock('../shared/exec.js');
 
 import fs from 'fs/promises';
-import { execFileSync } from 'child_process';
+import { runSync } from '../shared/exec.js';
 import { OpenClawAdapter } from '../adapters/openclaw.js';
 
 const HOME = os.homedir();
@@ -34,16 +34,16 @@ describe('OpenClawAdapter.detect()', () => {
 
   it('falls back to `which openclaw` when ~/.openclaw is absent', async () => {
     vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'));
-    vi.mocked(execFileSync).mockReturnValueOnce(Buffer.from('/usr/bin/openclaw'));
+    vi.mocked(runSync).mockReturnValueOnce(undefined);
     const result = await adapter.detect();
     expect(result.installed).toBe(true);
     expect(result.configPath).toBe(CONFIG_PATH);
-    expect(execFileSync).toHaveBeenCalledWith('which', ['openclaw'], { stdio: 'ignore' });
+    expect(runSync).toHaveBeenCalledWith('which', ['openclaw'], { stdio: 'ignore' });
   });
 
   it('returns installed=false when neither check succeeds', async () => {
     vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'));
-    vi.mocked(execFileSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    vi.mocked(runSync).mockImplementationOnce(() => { throw new Error('not found'); });
     const result = await adapter.detect();
     expect(result.installed).toBe(false);
     expect(result.configPath).toBeUndefined();
@@ -55,12 +55,12 @@ describe('OpenClawAdapter.writeMcpConfig()', () => {
   beforeEach(() => { adapter = new OpenClawAdapter(); vi.clearAllMocks(); });
 
   it('uses the openclaw CLI when available', async () => {
-    vi.mocked(execFileSync).mockReturnValueOnce(Buffer.from(''));
+    vi.mocked(runSync).mockReturnValueOnce(undefined);
 
     await adapter.writeMcpConfig(MOCK_OAUTH);
 
-    expect(execFileSync).toHaveBeenCalledOnce();
-    const [cmd, args] = vi.mocked(execFileSync).mock.calls[0] as [string, string[]];
+    expect(runSync).toHaveBeenCalledOnce();
+    const [cmd, args] = vi.mocked(runSync).mock.calls[0] as [string, string[]];
     expect(cmd).toBe('openclaw');
     expect(args[0]).toBe('mcp');
     expect(args[1]).toBe('set');
@@ -71,7 +71,7 @@ describe('OpenClawAdapter.writeMcpConfig()', () => {
   });
 
   it('falls back to direct JSON write when CLI throws', async () => {
-    vi.mocked(execFileSync).mockImplementationOnce(() => { throw new Error('command not found'); });
+    vi.mocked(runSync).mockImplementationOnce(() => { throw new Error('command not found'); });
     vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     vi.mocked(fs.mkdir).mockResolvedValue(undefined);
     vi.mocked(fs.writeFile).mockResolvedValue(undefined);
@@ -87,7 +87,7 @@ describe('OpenClawAdapter.writeMcpConfig()', () => {
   });
 
   it('merges into existing JSON config without clobbering other keys', async () => {
-    vi.mocked(execFileSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    vi.mocked(runSync).mockImplementationOnce(() => { throw new Error('not found'); });
     const existing = JSON.stringify({ agents: { defaults: { skills: ['github'] } } });
     vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
     vi.mocked(fs.mkdir).mockResolvedValue(undefined);
@@ -102,7 +102,7 @@ describe('OpenClawAdapter.writeMcpConfig()', () => {
   });
 
   it('throws a helpful message when the config file exists but cannot be parsed', async () => {
-    vi.mocked(execFileSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    vi.mocked(runSync).mockImplementationOnce(() => { throw new Error('not found'); });
     const json5Content = '{ agents: { defaults: { skills: [] } } }'; // unquoted keys = invalid JSON
     vi.mocked(fs.readFile).mockResolvedValueOnce(json5Content as any);
 
@@ -139,18 +139,18 @@ describe('OpenClawAdapter.removeAll()', () => {
   beforeEach(() => { adapter = new OpenClawAdapter(); vi.clearAllMocks(); });
 
   it('calls `openclaw mcp unset custena` and deletes skill file', async () => {
-    vi.mocked(execFileSync).mockReturnValueOnce(Buffer.from(''));
+    vi.mocked(runSync).mockReturnValueOnce(undefined);
     vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     vi.mocked(fs.unlink).mockResolvedValue(undefined);
 
     await adapter.removeAll();
 
-    expect(execFileSync).toHaveBeenCalledWith('openclaw', ['mcp', 'unset', 'custena'], { stdio: 'ignore' });
+    expect(runSync).toHaveBeenCalledWith('openclaw', ['mcp', 'unset', 'custena'], { stdio: 'ignore' });
     expect(fs.unlink).toHaveBeenCalledWith(SKILL_PATH);
   });
 
   it('removes custena from config JSON when present (even if CLI fails)', async () => {
-    vi.mocked(execFileSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    vi.mocked(runSync).mockImplementationOnce(() => { throw new Error('not found'); });
     const existing = JSON.stringify({
       mcp: { servers: { custena: { url: 'x' }, other: { url: 'y' } } },
     });
@@ -167,7 +167,7 @@ describe('OpenClawAdapter.removeAll()', () => {
   });
 
   it('does not throw if skill file does not exist', async () => {
-    vi.mocked(execFileSync).mockReturnValueOnce(Buffer.from(''));
+    vi.mocked(runSync).mockReturnValueOnce(undefined);
     vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     vi.mocked(fs.unlink).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
 

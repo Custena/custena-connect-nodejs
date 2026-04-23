@@ -3,7 +3,7 @@ import { MCP_URL } from '../config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { execFileSync } from 'child_process';
+import { runSync } from '../shared/exec.js';
 
 /**
  * Replaces (or appends) a dotted-key TOML section in `content`.
@@ -76,7 +76,7 @@ export class CodxAdapter implements HostAdapter {
       return { installed: true, configPath: this.configPath };
     } catch {}
     try {
-      execFileSync('which', ['codex'], { stdio: 'ignore' });
+      runSync('which', ['codex'], { stdio: 'ignore' });
       return { installed: true, configPath: this.configPath };
     } catch {}
     return { installed: false };
