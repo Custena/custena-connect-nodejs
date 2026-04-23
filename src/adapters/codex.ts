@@ -16,12 +16,13 @@ export function patchTomlSection(
   fields: Record<string, string>,
 ): string {
   const header = `[${sectionKey}]`;
-  const lines = content.split('\n');
+  const lines = content ? content.split('\n') : [];
   const out: string[] = [];
   let inTarget = false;
 
   for (const line of lines) {
     const trimmed = line.trimStart();
+    // Note: does not handle TOML array-of-tables ([[header]]) — not used in Codex config.toml.
     if (trimmed.startsWith('[')) {
       if (inTarget) inTarget = false;
       if (trimmed === header) { inTarget = true; continue; }
@@ -48,6 +49,7 @@ export function removeTomlSection(content: string, sectionKey: string): string {
 
   for (const line of lines) {
     const trimmed = line.trimStart();
+    // Note: does not handle TOML array-of-tables ([[header]]) — not used in Codex config.toml.
     if (trimmed.startsWith('[')) {
       if (inTarget) inTarget = false;
       if (trimmed === header) { inTarget = true; continue; }

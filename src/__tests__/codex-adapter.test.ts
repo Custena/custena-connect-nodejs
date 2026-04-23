@@ -50,6 +50,13 @@ describe('patchTomlSection()', () => {
     expect(result).toContain('[mcp_servers.custena]');
     expect(result).toContain('url = "https://x.com"');
   });
+
+  it('is idempotent — calling twice produces the same result as calling once', () => {
+    const fields = { url: 'https://api.custena.com/mcp', bearer_token: 'tok' };
+    const first = patchTomlSection('model = "gpt-4o"\n', 'mcp_servers.custena', fields);
+    const second = patchTomlSection(first, 'mcp_servers.custena', fields);
+    expect(second).toBe(first);
+  });
 });
 
 describe('removeTomlSection()', () => {
@@ -75,6 +82,7 @@ describe('removeTomlSection()', () => {
     const result = removeTomlSection(existing, 'mcp_servers.custena');
     expect(result).toContain('[mcp_servers.other]');
     expect(result).not.toContain('[mcp_servers.custena]');
+    expect(result).toBe(existing);
   });
 
   it('handles empty content gracefully', () => {
