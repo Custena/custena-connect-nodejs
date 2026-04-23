@@ -33,7 +33,52 @@ export class OpenClawAdapter implements HostAdapter {
     return { installed: false };
   }
 
-  async writeMcpConfig(_oauth: OAuthConfig): Promise<void> {}
+  async writeMcpConfig(oauth: OAuthConfig): Promise<void> {
+    const serverJson = JSON.stringify({
+      url: MCP_URL,
+      headers: { Authorization: `Bearer ${oauth.accessToken}` },
+    });
+
+    try {
+      execFileSync('openclaw', ['mcp', 'set', 'custena', serverJson], { stdio: 'inherit' });
+    } catch {
+      await this.writeConfigFallback(oauth.accessToken);
+    }
+  }
+
+  private async writeConfigFallback(accessToken: string): Promise<void> {
+    let config: any = {};
+    try {
+      const raw = await fs.readFile(this.configPath, 'utf-8');
+      try {
+        config = JSON.parse(raw);
+      } catch {
+        const serverJson = JSON.stringify({
+          url: MCP_URL,
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        throw new Error(
+          `Could not parse ~/.openclaw/openclaw.json (may be JSON5 format). ` +
+          `Run manually: openclaw mcp set custena '${serverJson}'`,
+        );
+      }
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw e;
+      }
+    }
+
+    config.mcp = config.mcp ?? {};
+    config.mcp.servers = config.mcp.servers ?? {};
+    config.mcp.servers.custena = {
+      url: MCP_URL,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    };
+
+    await fs.mkdir(this.configDir, { recursive: true });
+    await fs.writeFile(this.configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  }
+
   async writeSkill(): Promise<void> {}
   async writeHooks(): Promise<void> {} // OpenClaw has no hook system.
   async removeAll(): Promise<void> {}
