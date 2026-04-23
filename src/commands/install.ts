@@ -52,8 +52,14 @@ export function installCommand(): Command {
         return;
       }
 
+      // Keep the callback server open so it can also receive the /setup-done
+      // signal from the dashboard setup page. Every new authorization must be
+      // scoped to an Agent before it becomes usable (setup is required, not
+      // optional). After OAuth, the browser is redirected to the dashboard
+      // setup page; once the user picks or creates an Agent, the page POSTs
+      // back to the CLI's callback server.
       console.log('\nOpening browser for Custena login...');
-      const oauth = await runOAuthFlow();
+      const { config: oauth, waitForSetup } = await runOAuthFlow({ awaitSetupCompletion: true });
       console.log(chalk.green('✓ Authenticated'));
 
       for (const { adapter } of targets) {
@@ -73,6 +79,22 @@ export function installCommand(): Command {
           const s3 = ora(`Writing hooks for ${label}...`).start();
           await adapter.writeHooks();
           s3.succeed(`Hooks configured (${label})`);
+        }
+      }
+
+      // Block here until the dashboard setup page signals completion; if the
+      // user abandons the tab the backend cleanup cron reaps the orphan row
+      // and the CLI instructs them to re-run install.
+      if (waitForSetup) {
+        const s4 = ora('Waiting for agent authorization in the browser...').start();
+        try {
+          const { agentName } = await waitForSetup();
+          s4.succeed(`Scoped to Agent: ${chalk.green(agentName)}`);
+        } catch (e) {
+          s4.fail('Setup not completed');
+          console.log(chalk.red('\n✗ Setup was not completed in the browser.'));
+          console.log('Re-run ' + chalk.cyan('custena-connect install') + ' when you are ready.');
+          process.exit(2);
         }
       }
 
