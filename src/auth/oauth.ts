@@ -40,6 +40,17 @@ function generateState(): string {
   return crypto.randomBytes(16).toString('hex');
 }
 
+// Exported so security-regression tests can exercise these predicates
+// without spinning up the callback server. Each guards a path where the
+// wrong answer silently reintroduces a known vulnerability class.
+export function isStateValid(received: string | null, expected: string): boolean {
+  return received !== null && received === expected;
+}
+
+export function isOriginAllowed(origin: string | null, allowed: string | null): boolean {
+  return origin !== null && allowed !== null && origin === allowed;
+}
+
 export async function runOAuthFlow(options: RunOAuthOptions = {}): Promise<RunOAuthResult> {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -112,7 +123,7 @@ async function startCallbackServer(
       if (url.pathname === CALLBACK_PATH) {
         const code = url.searchParams.get('code');
         const state = url.searchParams.get('state');
-        if (!code || state !== args.expectedState()) {
+        if (!code || !isStateValid(state, args.expectedState())) {
           res.writeHead(400, { 'Content-Type': 'text/html' }).end('<html><body>OAuth error. Re-run <code>custena-connect install</code>.</body></html>');
           rejectCallback(new Error('OAuth callback state mismatch'));
           closeServer();
@@ -171,7 +182,7 @@ async function startCallbackServer(
         // during install that POSTs to localhost:9874 is filtered out —
         // wildcard CORS would let them forge a completion signal.
         const origin = req.headers.origin ?? null;
-        const originOk = origin !== null && allowedOrigin !== null && origin === allowedOrigin;
+        const originOk = isOriginAllowed(origin, allowedOrigin);
 
         if (req.method === 'OPTIONS') {
           if (!originOk) {

@@ -6,7 +6,7 @@ vi.mock('fs/promises');
 vi.mock('child_process');
 
 import fs from 'fs/promises';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { CodxAdapter, patchTomlSection, removeTomlSection } from '../adapters/codex.js';
 import { MCP_URL } from '../config.js';
 
@@ -124,16 +124,16 @@ describe('CodxAdapter.detect()', () => {
 
   it('falls back to `which codex` when ~/.codex is absent', async () => {
     vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'));
-    vi.mocked(execSync).mockReturnValueOnce(Buffer.from('/usr/local/bin/codex'));
+    vi.mocked(execFileSync).mockReturnValueOnce(Buffer.from('/usr/local/bin/codex'));
     const result = await adapter.detect();
     expect(result.installed).toBe(true);
-    expect(execSync).toHaveBeenCalledWith('which codex', { stdio: 'ignore' });
+    expect(execFileSync).toHaveBeenCalledWith('which', ['codex'], { stdio: 'ignore' });
     expect(result.configPath).toBe(CONFIG_PATH);
   });
 
   it('returns installed=false when neither check succeeds', async () => {
     vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'));
-    vi.mocked(execSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    vi.mocked(execFileSync).mockImplementationOnce(() => { throw new Error('not found'); });
     const result = await adapter.detect();
     expect(result.installed).toBe(false);
     expect(result.configPath).toBeUndefined();

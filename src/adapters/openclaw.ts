@@ -3,7 +3,21 @@ import { MCP_URL, SKILL_TEXT } from '../config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { execSync, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
+
+// Only the slice of ~/.openclaw/openclaw.json this adapter touches. Unknown
+// keys flow through the index signature so round-tripping the file doesn't
+// clobber fields OpenClaw added but we don't know about.
+interface OpenClawMcpServer {
+  url: string;
+  headers?: Record<string, string>;
+}
+interface OpenClawConfig {
+  mcp?: {
+    servers?: Record<string, OpenClawMcpServer | undefined>;
+  };
+  [key: string]: unknown;
+}
 
 const SKILL_FRONTMATTER = `---
 name: custena-pay
@@ -27,7 +41,7 @@ export class OpenClawAdapter implements HostAdapter {
       return { installed: true, configPath: this.configPath };
     } catch {}
     try {
-      execSync('which openclaw', { stdio: 'ignore' });
+      execFileSync('which', ['openclaw'], { stdio: 'ignore' });
       return { installed: true, configPath: this.configPath };
     } catch {}
     return { installed: false };
@@ -47,11 +61,11 @@ export class OpenClawAdapter implements HostAdapter {
   }
 
   private async writeConfigFallback(accessToken: string): Promise<void> {
-    let config: any = {};
+    let config: OpenClawConfig = {};
     try {
       const raw = await fs.readFile(this.configPath, 'utf-8');
       try {
-        config = JSON.parse(raw);
+        config = JSON.parse(raw) as OpenClawConfig;
       } catch {
         const serverJson = JSON.stringify({
           url: MCP_URL,
@@ -87,12 +101,12 @@ export class OpenClawAdapter implements HostAdapter {
   async writeHooks(): Promise<void> {} // OpenClaw has no hook system.
 
   async removeAll(): Promise<void> {
-    try { execSync('openclaw mcp unset custena', { stdio: 'ignore' }); } catch {}
+    try { execFileSync('openclaw', ['mcp', 'unset', 'custena'], { stdio: 'ignore' }); } catch {}
 
     // Also clean up JSON directly in case CLI wasn't available during install.
     try {
       const raw = await fs.readFile(this.configPath, 'utf-8');
-      const config = JSON.parse(raw);
+      const config = JSON.parse(raw) as OpenClawConfig;
       if (config.mcp?.servers?.custena) {
         delete config.mcp.servers.custena;
         await fs.writeFile(this.configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
