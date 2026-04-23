@@ -70,9 +70,39 @@ export class CodxAdapter implements HostAdapter {
   private get configDir() { return path.join(os.homedir(), '.codex'); }
   private get configPath() { return path.join(this.configDir, 'config.toml'); }
 
-  async detect(): Promise<HostPresence> { return { installed: false }; }
-  async writeMcpConfig(_oauth: OAuthConfig): Promise<void> {}
+  async detect(): Promise<HostPresence> {
+    try {
+      await fs.access(this.configDir);
+      return { installed: true, configPath: this.configPath };
+    } catch {}
+    try {
+      execSync('which codex', { stdio: 'ignore' });
+      return { installed: true, configPath: this.configPath };
+    } catch {}
+    return { installed: false };
+  }
+
+  async writeMcpConfig(oauth: OAuthConfig): Promise<void> {
+    const existing = await fs.readFile(this.configPath, 'utf-8').catch(() => '');
+    const patched = patchTomlSection(existing, 'mcp_servers.custena', {
+      url: MCP_URL,
+      bearer_token: oauth.accessToken,
+      default_tools_approval_mode: 'approve',
+    });
+    await fs.mkdir(this.configDir, { recursive: true });
+    await fs.writeFile(this.configPath, patched, 'utf-8');
+  }
+
+  // Codex reads prompts from the MCP server natively (mcpPrompts: true → never called by installer).
   async writeSkill(): Promise<void> {}
+
+  // Codex has no hook system (hooks: false → never called by installer).
   async writeHooks(): Promise<void> {}
-  async removeAll(): Promise<void> {}
+
+  async removeAll(): Promise<void> {
+    const existing = await fs.readFile(this.configPath, 'utf-8').catch(() => '');
+    if (!existing) return;
+    const patched = removeTomlSection(existing, 'mcp_servers.custena');
+    await fs.writeFile(this.configPath, patched, 'utf-8');
+  }
 }

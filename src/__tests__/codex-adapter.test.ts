@@ -1,5 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import { patchTomlSection, removeTomlSection } from '../adapters/codex.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import os from 'os';
+import path from 'path';
+
+vi.mock('fs/promises');
+vi.mock('child_process');
+
+import fs from 'fs/promises';
+import { execSync } from 'child_process';
+import { CodxAdapter, patchTomlSection, removeTomlSection } from '../adapters/codex.js';
+
+const HOME = os.homedir();
+const CODEX_DIR = path.join(HOME, '.codex');
+const CONFIG_PATH = path.join(CODEX_DIR, 'config.toml');
+const MOCK_OAUTH = {
+  accessToken: 'test-access-token',
+  refreshToken: 'test-refresh-token',
+  expiresAt: 9_999_999_999,
+  clientId: 'custena-connect-cli',
+};
 
 describe('patchTomlSection()', () => {
   it('adds a new section to empty content', () => {
@@ -88,5 +106,99 @@ describe('removeTomlSection()', () => {
   it('handles empty content gracefully', () => {
     const result = removeTomlSection('', 'mcp_servers.custena');
     expect(result).toBe('');
+  });
+});
+
+describe('CodxAdapter.detect()', () => {
+  let adapter: CodxAdapter;
+  beforeEach(() => { adapter = new CodxAdapter(); vi.clearAllMocks(); });
+
+  it('returns installed=true when ~/.codex directory exists', async () => {
+    vi.mocked(fs.access).mockResolvedValueOnce(undefined);
+    const result = await adapter.detect();
+    expect(result.installed).toBe(true);
+    expect(result.configPath).toBe(CONFIG_PATH);
+    expect(fs.access).toHaveBeenCalledWith(CODEX_DIR);
+  });
+
+  it('falls back to `which codex` when ~/.codex is absent', async () => {
+    vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'));
+    vi.mocked(execSync).mockReturnValueOnce(Buffer.from('/usr/local/bin/codex'));
+    const result = await adapter.detect();
+    expect(result.installed).toBe(true);
+    expect(execSync).toHaveBeenCalledWith('which codex', { stdio: 'ignore' });
+  });
+
+  it('returns installed=false when neither check succeeds', async () => {
+    vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'));
+    vi.mocked(execSync).mockImplementationOnce(() => { throw new Error('not found'); });
+    const result = await adapter.detect();
+    expect(result.installed).toBe(false);
+    expect(result.configPath).toBeUndefined();
+  });
+});
+
+describe('CodxAdapter.writeMcpConfig()', () => {
+  let adapter: CodxAdapter;
+  beforeEach(() => { adapter = new CodxAdapter(); vi.clearAllMocks(); });
+
+  it('writes config.toml with [mcp_servers.custena] url and bearer_token', async () => {
+    vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+    await adapter.writeMcpConfig(MOCK_OAUTH);
+
+    expect(fs.writeFile).toHaveBeenCalledOnce();
+    const [writePath, content] = vi.mocked(fs.writeFile).mock.calls[0] as [string, string];
+    expect(writePath).toBe(CONFIG_PATH);
+    expect(content).toContain('[mcp_servers.custena]');
+    expect(content).toContain('url = "https://api.custena.com/mcp"');
+    expect(content).toContain('bearer_token = "test-access-token"');
+    expect(content).toContain('default_tools_approval_mode = "approve"');
+  });
+
+  it('preserves existing non-custena TOML content', async () => {
+    const existing = 'model = "gpt-4o"\nsandbox_mode = "workspace-write"\n';
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+    await adapter.writeMcpConfig(MOCK_OAUTH);
+
+    const [, content] = vi.mocked(fs.writeFile).mock.calls[0] as [string, string];
+    expect(content).toContain('model = "gpt-4o"');
+    expect(content).toContain('sandbox_mode = "workspace-write"');
+  });
+});
+
+describe('CodxAdapter.removeAll()', () => {
+  let adapter: CodxAdapter;
+  beforeEach(() => { adapter = new CodxAdapter(); vi.clearAllMocks(); });
+
+  it('removes [mcp_servers.custena] section and preserves other content', async () => {
+    const existing = [
+      '[mcp_servers.custena]',
+      'url = "https://api.custena.com/mcp"',
+      'bearer_token = "tok"',
+      '',
+      '[mcp_servers.other]',
+      'command = "other"',
+      '',
+    ].join('\n');
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+    await adapter.removeAll();
+
+    const [, content] = vi.mocked(fs.writeFile).mock.calls[0] as [string, string];
+    expect(content).not.toContain('[mcp_servers.custena]');
+    expect(content).toContain('[mcp_servers.other]');
+  });
+
+  it('does nothing when config.toml does not exist', async () => {
+    vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    await adapter.removeAll();
+    expect(fs.writeFile).not.toHaveBeenCalled();
   });
 });
