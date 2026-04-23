@@ -8,6 +8,7 @@ vi.mock('child_process');
 import fs from 'fs/promises';
 import { execSync } from 'child_process';
 import { CodxAdapter, patchTomlSection, removeTomlSection } from '../adapters/codex.js';
+import { MCP_URL } from '../config.js';
 
 const HOME = os.homedir();
 const CODEX_DIR = path.join(HOME, '.codex');
@@ -127,6 +128,7 @@ describe('CodxAdapter.detect()', () => {
     const result = await adapter.detect();
     expect(result.installed).toBe(true);
     expect(execSync).toHaveBeenCalledWith('which codex', { stdio: 'ignore' });
+    expect(result.configPath).toBe(CONFIG_PATH);
   });
 
   it('returns installed=false when neither check succeeds', async () => {
@@ -153,7 +155,7 @@ describe('CodxAdapter.writeMcpConfig()', () => {
     const [writePath, content] = vi.mocked(fs.writeFile).mock.calls[0] as [string, string];
     expect(writePath).toBe(CONFIG_PATH);
     expect(content).toContain('[mcp_servers.custena]');
-    expect(content).toContain('url = "https://api.custena.com/mcp"');
+    expect(content).toContain(`url = ${JSON.stringify(MCP_URL)}`);
     expect(content).toContain('bearer_token = "test-access-token"');
     expect(content).toContain('default_tools_approval_mode = "approve"');
   });
@@ -199,6 +201,15 @@ describe('CodxAdapter.removeAll()', () => {
   it('does nothing when config.toml does not exist', async () => {
     vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     await adapter.removeAll();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('does not write when the section is not present in the file', async () => {
+    const existing = '[mcp_servers.other]\ncommand = "other"\n';
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+
+    await adapter.removeAll();
+
     expect(fs.writeFile).not.toHaveBeenCalled();
   });
 });

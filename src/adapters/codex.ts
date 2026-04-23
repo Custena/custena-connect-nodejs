@@ -103,6 +103,8 @@ export class CodxAdapter implements HostAdapter {
     const existing = await fs.readFile(this.configPath, 'utf-8').catch(() => '');
     if (!existing) return;
     const patched = removeTomlSection(existing, 'mcp_servers.custena');
-    await fs.writeFile(this.configPath, patched, 'utf-8');
+    if (patched !== existing) {
+      await fs.writeFile(this.configPath, patched, 'utf-8');
+    }
   }
 }
