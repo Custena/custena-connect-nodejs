@@ -3,7 +3,31 @@ import { MCP_URL, OAUTH_CLIENT_ID, SKILL_TEXT } from '../config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { execSync } from 'child_process';
+import { runSync } from '../shared/exec.js';
+
+// Only the slice of ~/.claude/settings.json this adapter actually reads or
+// writes. The index signature preserves unknown keys on round-trip so we
+// never clobber fields Claude Code added but we don't know about.
+interface ClaudeHookEntry {
+  type: 'command';
+  command: string;
+}
+interface ClaudeHookMatcher {
+  matcher?: string;
+  hooks?: ClaudeHookEntry[];
+}
+interface ClaudeHooks {
+  PreToolUse?: ClaudeHookMatcher[];
+  PostToolUse?: ClaudeHookMatcher[];
+  UserPromptSubmit?: ClaudeHookMatcher[];
+  Stop?: ClaudeHookMatcher[];
+  [key: string]: ClaudeHookMatcher[] | undefined;
+}
+interface ClaudeSettings {
+  mcpServers?: Record<string, unknown>;
+  hooks?: ClaudeHooks;
+  [key: string]: unknown;
+}
 
 export class ClaudeCodeAdapter implements HostAdapter {
   id = 'claude-code';
@@ -27,7 +51,7 @@ export class ClaudeCodeAdapter implements HostAdapter {
     } catch {}
     // Check claude binary on PATH
     try {
-      execSync('which claude', { stdio: 'ignore' });
+      runSync('which', ['claude'], { stdio: 'ignore' });
       return { installed: true, configPath: this.settingsPath };
     } catch {}
     // Check VS Code extension
@@ -47,7 +71,7 @@ export class ClaudeCodeAdapter implements HostAdapter {
     // this CLI maintains in ~/.claude.json, NOT ~/.claude/settings.json).
     // Remove first for idempotency; ignore failure when no entry exists.
     try {
-      execSync('claude mcp remove custena --scope user', { stdio: 'ignore' });
+      runSync('claude', ['mcp', 'remove', 'custena', '--scope', 'user'], { stdio: 'ignore' });
     } catch {}
     // `claude mcp add` takes URL as a positional arg (not --url):
     //   claude mcp add --transport http --scope user --client-id <id> <name> <url>
@@ -56,8 +80,19 @@ export class ClaudeCodeAdapter implements HostAdapter {
     // the right scopes (custena:buyer, offline_access), redirect URIs, and
     // PKCE config. Without this flag, the SDK creates a fresh client per
     // install attempt with minimal scopes, which then 400s on /authorize.
-    execSync(
-      `claude mcp add --transport http --scope user --client-id ${OAUTH_CLIENT_ID} custena ${MCP_URL}`,
+    // argv form (not a shell string) so OAUTH_CLIENT_ID and MCP_URL — both
+    // env-overridable — can't inject shell metacharacters. See review:
+    // strings passed to execSync are parsed by /bin/sh; argv arrays aren't.
+    // runSync goes through cross-spawn so PATHEXT resolution works on Windows.
+    runSync(
+      'claude',
+      [
+        'mcp', 'add',
+        '--transport', 'http',
+        '--scope', 'user',
+        '--client-id', OAUTH_CLIENT_ID,
+        'custena', MCP_URL,
+      ],
       { stdio: 'inherit' },
     );
 
@@ -85,9 +120,9 @@ export class ClaudeCodeAdapter implements HostAdapter {
     const settings = await this.readSettings();
     settings.hooks = settings.hooks ?? {};
 
-    const makeHook = (cmd: string) => [{ type: 'command', command: cmd }];
-    const hookExists = (arr: any[], cmd: string) =>
-      arr.some(h => h?.hooks?.some?.((x: any) => x.command === cmd));
+    const makeHook = (cmd: string): ClaudeHookEntry[] => [{ type: 'command', command: cmd }];
+    const hookExists = (arr: ClaudeHookMatcher[], cmd: string) =>
+      arr.some(h => h?.hooks?.some(x => x?.command === cmd));
 
     const preCmd = 'npx custena-connect hook pre-tool-use';
     const postCmd = 'npx custena-connect hook post-tool-use';
@@ -116,7 +151,7 @@ export class ClaudeCodeAdapter implements HostAdapter {
     // case an older local-scope entry is lying around. Ignore failures.
     for (const scope of ['user', 'local'] as const) {
       try {
-        execSync(`claude mcp remove custena --scope ${scope}`, { stdio: 'ignore' });
+        runSync('claude', ['mcp', 'remove', 'custena', '--scope', scope], { stdio: 'ignore' });
       } catch {}
     }
 
@@ -127,10 +162,12 @@ export class ClaudeCodeAdapter implements HostAdapter {
     if (settings.mcpServers?.custena) delete settings.mcpServers.custena;
 
     // Remove custena hooks from every hook category.
-    for (const [key, arr] of Object.entries(settings.hooks ?? {})) {
-      (settings.hooks as any)[key] = (arr as any[]).filter(
-        h => !JSON.stringify(h).includes('custena-connect')
-      );
+    const hooks = settings.hooks ?? {};
+    for (const key of Object.keys(hooks)) {
+      const arr = hooks[key];
+      if (Array.isArray(arr)) {
+        hooks[key] = arr.filter(h => !JSON.stringify(h).includes('custena-connect'));
+      }
     }
     await this.writeSettings(settings);
 
@@ -138,16 +175,16 @@ export class ClaudeCodeAdapter implements HostAdapter {
     try { await fs.unlink(this.skillPath); } catch {}
   }
 
-  private async readSettings(): Promise<any> {
+  private async readSettings(): Promise<ClaudeSettings> {
     try {
       const content = await fs.readFile(this.settingsPath, 'utf-8');
-      return JSON.parse(content);
+      return JSON.parse(content) as ClaudeSettings;
     } catch {
       return {};
     }
   }
 
-  private async writeSettings(settings: any): Promise<void> {
+  private async writeSettings(settings: ClaudeSettings): Promise<void> {
     await fs.mkdir(path.dirname(this.settingsPath), { recursive: true });
     await fs.writeFile(this.settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
   }

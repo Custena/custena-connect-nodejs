@@ -1,8 +1,14 @@
 import { Command } from 'commander';
 import { HOOKS_URL, HOOK_QUEUE_PATH } from '../config.js';
 import { loadToken } from '../auth/oauth.js';
+import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+
+// Event-scoped fallback UUID used when the host doesn't supply a session_id in the payload.
+// Claude Code invokes this command as a new subprocess per event, so this UUID is unique
+// per event — it is NOT shared across events from the same session.
+const PROCESS_SESSION_ID = crypto.randomUUID();
 
 const EVENT_TYPE_MAP: Record<string, string> = {
   'pre-tool-use': 'PRE_TOOL_USE',
@@ -10,6 +16,36 @@ const EVENT_TYPE_MAP: Record<string, string> = {
   'user-prompt': 'USER_PROMPT',
   'stop': 'STOP',
 };
+
+// The slice of the hook payload this command reads. Claude Code controls the
+// full shape — we only name the fields we consume. Additional fields flow
+// through unread without a type error.
+export interface HookPayload {
+  session_id?: string;
+  sessionId?: string;
+  tool_name?: string;
+  toolName?: string;
+  tool_input?: unknown;
+  tool_response?: unknown;
+  duration_ms?: number;
+  error?: string;
+  user_message?: string;
+}
+
+// GDPR data minimisation (Art. 5(1)(c)): for tool-use events, only forward
+// events tied to Custena MCP tools. Bash commands, file paths, and other
+// tool args have no lawful basis for collection and are silently dropped.
+// USER_PROMPT and STOP are session lifecycle events with no sensitive args.
+// Exported for regression tests — a silent regression here reintroduces a
+// personal-data collection bug with no user-visible symptom.
+export function shouldForwardHookEvent(
+  eventType: string,
+  payload: HookPayload,
+): boolean {
+  if (eventType !== 'PRE_TOOL_USE' && eventType !== 'POST_TOOL_USE') return true;
+  const tool = payload.tool_name ?? payload.toolName ?? '';
+  return tool.startsWith('custena_');
+}
 
 export function hookCommand(): Command {
   return new Command('hook')
@@ -26,11 +62,15 @@ export function hookCommand(): Command {
       let rawInput = '';
       for await (const chunk of process.stdin) rawInput += chunk;
 
-      let payload: any = {};
-      try { payload = JSON.parse(rawInput); } catch {}
+      let payload: HookPayload = {};
+      try { payload = JSON.parse(rawInput) as HookPayload; } catch {}
+
+      if (!shouldForwardHookEvent(eventType, payload)) {
+        process.exit(0);
+      }
 
       const body = {
-        sessionId: payload.session_id ?? payload.sessionId ?? 'unknown',
+        sessionId: payload.session_id ?? payload.sessionId ?? PROCESS_SESSION_ID,
         eventType,
         toolName: payload.tool_name ?? payload.toolName ?? null,
         toolInputSummary: payload.tool_input ? JSON.stringify(payload.tool_input).slice(0, 4000) : null,
