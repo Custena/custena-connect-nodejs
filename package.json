@@ -1,6 +1,6 @@
 {
   "name": "custena-connect",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Connect your AI coding agent to Custena — pay HTTP 402 responses from your Custena buyer account.",
   "keywords": [
     "custena",
@@ -38,16 +38,19 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "commander": "^12.0.0",
-    "open": "^10.0.0",
-    "ora": "^8.0.0",
+    "@inquirer/prompts": "^8.4.2",
     "chalk": "^5.3.0",
-    "node-fetch": "^3.3.0"
+    "commander": "^12.0.0",
+    "cross-spawn": "^7.0.6",
+    "node-fetch": "^3.3.0",
+    "open": "^10.0.0",
+    "ora": "^8.0.0"
   },
   "devDependencies": {
+    "@types/cross-spawn": "^6.0.6",
     "@types/node": "^22.0.0",
-    "typescript": "^5.5.0",
     "tsx": "^4.15.0",
+    "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
   "engines": {

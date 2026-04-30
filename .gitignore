@@ -153,3 +153,6 @@ Thumbs.db
 # Private maintainer notes (not for public repo)
 private-readme.md
 
+# Git worktrees
+.worktrees/
+
