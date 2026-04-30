@@ -24,11 +24,11 @@ custena-connect install
 
 This will:
 
-1. Detect your installed coding agent (currently: **Claude Code**).
+1. Detect your installed coding agent (Claude Code, OpenAI Codex, OpenClaw — prompts you to pick if more than one is found).
 2. Open your browser to sign in to Custena (OAuth 2.0 with PKCE).
 3. Register Custena as an MCP server in your agent.
-4. Install a skill file describing how to use it.
-5. Wire up hooks so tool/prompt events are reported to your Custena account.
+4. Install a skill file describing how to use it (where the host supports skills).
+5. Wire up hooks so tool/prompt events are reported to your Custena account (where the host supports hooks).
 
 From there, your agent can call any Custena-wrapped API or MCP server. When a seller returns HTTP 402, your agent pays from your Custena buyer balance — no prompt, no card, no context switch.
 
@@ -43,12 +43,14 @@ From there, your agent can call any Custena-wrapped API or MCP server. When a se
 
 ## Supported hosts
 
-| Host | Status |
-|------|--------|
-| [Claude Code](https://claude.com/claude-code) | ✅ Supported |
-| Cursor | 🔜 Planned |
-| Cline | 🔜 Planned |
-| VS Code Copilot | 🔜 Planned |
+| Host | MCP | Skill | Hooks |
+|------|-----|-------|-------|
+| [Claude Code](https://claude.com/claude-code) | ✅ | ✅ | ✅ |
+| [OpenAI Codex](https://github.com/openai/codex) | ✅ | native (MCP prompts) | — |
+| OpenClaw | ✅ | ✅ | — |
+| Cursor | 🔜 Planned | | |
+| Cline | 🔜 Planned | | |
+| VS Code Copilot | 🔜 Planned | | |
 
 Want another host? [Open an issue](https://github.com/Custena/custena-connect-nodejs/issues).
 
