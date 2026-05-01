@@ -13,7 +13,7 @@ export async function selectHosts(detected: Detected[]): Promise<Detected[]> {
   if (detected.length <= 1) return detected;
 
   const selected = await checkbox<HostAdapter>({
-    message: 'Multiple coding agent hosts found — select which to configure:',
+    message: 'Multiple coding agent hosts found. All are pre-selected (space to deselect, enter to confirm):',
     choices: detected.map(({ adapter }) => ({
       value: adapter,
       name: adapter.displayName,
@@ -86,10 +86,10 @@ export function installCommand(): Command {
       // user abandons the tab the backend cleanup cron reaps the orphan row
       // and the CLI instructs them to re-run install.
       if (waitForSetup) {
-        const s4 = ora('Waiting for agent authorization in the browser...').start();
+        const s4 = ora('Waiting for setup completion in the browser (one-time, applies to all selected hosts)...').start();
         try {
           const { agentName } = await waitForSetup();
-          s4.succeed(`Scoped to Agent: ${chalk.green(agentName)}`);
+          s4.succeed(`Scoped to Custena Agent: ${chalk.green(agentName)}`);
         } catch (e) {
           s4.fail('Setup not completed');
           console.log(chalk.red('\n✗ Setup was not completed in the browser.'));
