@@ -52,15 +52,15 @@ export function installCommand(): Command {
         return;
       }
 
-      // Keep the callback server open so it can also receive the /setup-done
-      // signal from the dashboard setup page. Every new authorization must be
-      // scoped to an Agent before it becomes usable (setup is required, not
-      // optional). After OAuth, the browser is redirected to the dashboard
-      // setup page; once the user picks or creates an Agent, the page POSTs
-      // back to the CLI's callback server.
-      console.log('\nOpening browser for Custena login...');
-      const { config: oauth, waitForSetup } = await runOAuthFlow({ awaitSetupCompletion: true });
-      console.log(chalk.green('✓ Authenticated'));
+      // Authorization step disabled — Claude Code performs OAuth itself when
+      // the user runs `/mcp` against the registered server. Re-enable by
+      // uncommenting the runOAuthFlow call below (and the waitForSetup block
+      // further down) if a host adapter needs the token at install time.
+      // console.log('\nOpening browser for Custena login...');
+      // const { config: oauth, waitForSetup } = await runOAuthFlow({ awaitSetupCompletion: true });
+      // console.log(chalk.green('✓ Authenticated'));
+      const oauth = { accessToken: '', refreshToken: '', expiresAt: 0, clientId: '' };
+      const waitForSetup: (() => Promise<{ agentName: string; connectedAgentId: string }>) | undefined = undefined;
 
       for (const { adapter } of targets) {
         const label = adapter.displayName;
@@ -84,19 +84,21 @@ export function installCommand(): Command {
 
       // Block here until the dashboard setup page signals completion; if the
       // user abandons the tab the backend cleanup cron reaps the orphan row
-      // and the CLI instructs them to re-run install.
-      if (waitForSetup) {
-        const s4 = ora('Waiting for setup completion in the browser (one-time, applies to all selected hosts)...').start();
-        try {
-          const { agentName } = await waitForSetup();
-          s4.succeed(`Scoped to Custena Agent: ${chalk.green(agentName)}`);
-        } catch (e) {
-          s4.fail('Setup not completed');
-          console.log(chalk.red('\n✗ Setup was not completed in the browser.'));
-          console.log('Re-run ' + chalk.cyan('custena-connect install') + ' when you are ready.');
-          process.exit(2);
-        }
-      }
+      // and the CLI instructs them to re-run install. Disabled together with
+      // the OAuth flow above — re-enable both as a pair.
+      // if (waitForSetup) {
+      //   const s4 = ora('Waiting for setup completion in the browser (one-time, applies to all selected hosts)...').start();
+      //   try {
+      //     const { agentName } = await waitForSetup();
+      //     s4.succeed(`Scoped to Custena Agent: ${chalk.green(agentName)}`);
+      //   } catch (e) {
+      //     s4.fail('Setup not completed');
+      //     console.log(chalk.red('\n✗ Setup was not completed in the browser.'));
+      //     console.log('Re-run ' + chalk.cyan('custena-connect install') + ' when you are ready.');
+      //     process.exit(2);
+      //   }
+      // }
+      void waitForSetup;
 
       const names = targets.map(t => t.adapter.displayName).join(', ');
       console.log(chalk.bold(`\n✓ Custena Connect is ready on: ${names}`));
