@@ -103,5 +103,13 @@ export function installCommand(): Command {
       const names = targets.map(t => t.adapter.displayName).join(', ');
       console.log(chalk.bold(`\n✓ Custena Connect is ready on: ${names}`));
       console.log('These agents will now pay HTTP 402 responses from your Custena account.');
+
+      const notes = targets.filter(t => t.adapter.postInstallNote);
+      if (notes.length > 0) {
+        console.log('');
+        for (const { adapter } of notes) {
+          console.log(chalk.yellow(`  ${adapter.displayName}: ${adapter.postInstallNote}`));
+        }
+      }
     });
 }

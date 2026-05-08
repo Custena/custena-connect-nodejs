@@ -14,6 +14,8 @@ export interface HostAdapter {
   id: string;
   displayName: string;
   capabilities: { mcpPrompts: boolean; hooks: boolean };
+  /** Printed after install if present - use for host-specific next steps. */
+  postInstallNote?: string;
   detect(): Promise<HostPresence>;
   writeMcpConfig(oauth: OAuthConfig): Promise<void>;
   writeSkill(): Promise<void>;
