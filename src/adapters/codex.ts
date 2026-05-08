@@ -82,11 +82,10 @@ export class CodxAdapter implements HostAdapter {
     return { installed: false };
   }
 
-  async writeMcpConfig(oauth: OAuthConfig): Promise<void> {
+  async writeMcpConfig(_oauth: OAuthConfig): Promise<void> {
     const existing = await fs.readFile(this.configPath, 'utf-8').catch(() => '');
     const patched = patchTomlSection(existing, 'mcp_servers.custena', {
       url: MCP_URL,
-      bearer_token: oauth.accessToken,
       default_tools_approval_mode: 'approve',
     });
     await fs.mkdir(this.configDir, { recursive: true });
