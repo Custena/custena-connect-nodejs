@@ -84,10 +84,15 @@ export class CodxAdapter implements HostAdapter {
   }
 
   async writeMcpConfig(_oauth: OAuthConfig): Promise<void> {
+    // Codex's streamable_http MCP support doesn't accept bearer_token (only
+    // bearer_token_env_var), and default_tools_approval_mode isn't valid
+    // under [mcp_servers.*] either - it belongs to [apps.<id>]. Both fields
+    // make Codex refuse to load config.toml.
+    // We register only url; the user runs codex mcp login custena
+    // afterwards to do the OAuth flow. Codex handles PKCE + token refresh.
     const existing = await fs.readFile(this.configPath, 'utf-8').catch(() => '');
     const patched = patchTomlSection(existing, 'mcp_servers.custena', {
       url: MCP_URL,
-      default_tools_approval_mode: 'approve',
     });
     await fs.mkdir(this.configDir, { recursive: true });
     await fs.writeFile(this.configPath, patched, 'utf-8');

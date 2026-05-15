@@ -157,7 +157,7 @@ describe('CodxAdapter.writeMcpConfig()', () => {
     expect(content).toContain('[mcp_servers.custena]');
     expect(content).toContain(`url = ${JSON.stringify(MCP_URL)}`);
     expect(content).not.toContain('bearer_token');
-    expect(content).toContain('default_tools_approval_mode = "approve"');
+    expect(content).not.toContain('default_tools_approval_mode');
   });
 
   it('preserves existing non-custena TOML content', async () => {

@@ -111,5 +111,10 @@ export function installCommand(): Command {
           console.log(chalk.yellow(`  ${adapter.displayName}: ${adapter.postInstallNote}`));
         }
       }
+
+      if (targets.some(t => t.adapter.id === 'codex')) {
+        console.log('');
+        console.log(chalk.cyan('For OpenAI Codex:') + ' run ' + chalk.bold('codex mcp login custena') + ' to authenticate.');
+      }
     });
 }
