@@ -144,7 +144,7 @@ describe('CodxAdapter.writeMcpConfig()', () => {
   let adapter: CodxAdapter;
   beforeEach(() => { adapter = new CodxAdapter(); vi.clearAllMocks(); });
 
-  it('writes config.toml with [mcp_servers.custena] url and bearer_token', async () => {
+  it('writes config.toml with [mcp_servers.custena] url (no bearer_token — not supported by streamable_http)', async () => {
     vi.mocked(fs.readFile).mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
     vi.mocked(fs.mkdir).mockResolvedValue(undefined);
     vi.mocked(fs.writeFile).mockResolvedValue(undefined);
@@ -156,8 +156,8 @@ describe('CodxAdapter.writeMcpConfig()', () => {
     expect(writePath).toBe(CONFIG_PATH);
     expect(content).toContain('[mcp_servers.custena]');
     expect(content).toContain(`url = ${JSON.stringify(MCP_URL)}`);
-    expect(content).toContain('bearer_token = "test-access-token"');
-    expect(content).toContain('default_tools_approval_mode = "approve"');
+    expect(content).not.toContain('bearer_token');
+    expect(content).not.toContain('default_tools_approval_mode');
   });
 
   it('preserves existing non-custena TOML content', async () => {
