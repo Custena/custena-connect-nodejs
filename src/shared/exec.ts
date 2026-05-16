@@ -22,3 +22,10 @@ export function runSync(
     );
   }
 }
+
+/** Runs a command interactively (stdio passes through to the user's terminal). Returns the exit code. */
+export function runInteractive(command: string, args: string[]): number | null {
+  const result = spawn.sync(command, args, { stdio: 'inherit' });
+  if (result.error) throw result.error;
+  return result.status;
+}

@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { checkbox } from '@inquirer/prompts';
 import { adapters } from '../adapters/registry.js';
 import { runOAuthFlow } from '../auth/oauth.js';
+import { runInteractive } from '../shared/exec.js';
 import type { HostAdapter, HostPresence } from '../types.js';
 
 interface Detected { adapter: HostAdapter; presence: HostPresence }
@@ -114,7 +115,15 @@ export function installCommand(): Command {
 
       if (targets.some(t => t.adapter.id === 'codex')) {
         console.log('');
-        console.log(chalk.cyan('For OpenAI Codex:') + ' run ' + chalk.bold('codex mcp login custena') + ' to authenticate.');
+        console.log(chalk.cyan('Authenticating Codex with Custena...'));
+        try {
+          const code = runInteractive('codex', ['mcp', 'login', 'custena']);
+          if (code !== 0) {
+            console.log(chalk.yellow('  Authentication not completed. Run manually: codex mcp login custena'));
+          }
+        } catch {
+          console.log(chalk.yellow('  Could not launch codex. Run manually: codex mcp login custena'));
+        }
       }
     });
 }

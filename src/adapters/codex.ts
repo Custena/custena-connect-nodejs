@@ -66,7 +66,7 @@ export class CodxAdapter implements HostAdapter {
   id = 'codex';
   displayName = 'OpenAI Codex';
   capabilities = { mcpPrompts: true, hooks: false };
-  postInstallNote = 'Run `codex mcp login custena` to authenticate.';
+  postInstallNote = undefined;
 
   private get configDir() { return path.join(os.homedir(), '.codex'); }
   private get configPath() { return path.join(this.configDir, 'config.toml'); }
