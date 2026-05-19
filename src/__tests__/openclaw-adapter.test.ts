@@ -130,7 +130,11 @@ describe('OpenClawAdapter.writeSkill()', () => {
     expect(writePath).toBe(SKILL_PATH);
     expect(content).toContain('name: custena-pay');
     expect(content).toContain('description: Pay HTTP 402');
-    expect(content).toContain('custena.pay_challenge');
+    // Canonical tool surface: agents go through custena.fetch (action) +
+    // custena.discover (catalogue). pay_challenge is still mentioned in the
+    // skill body as a forbidden legacy escape hatch, so don't pin on it.
+    expect(content).toContain('custena.fetch');
+    expect(content).toContain('custena.discover');
   });
 });
 
